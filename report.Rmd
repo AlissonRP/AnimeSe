@@ -1,7 +1,7 @@
 ---
 title: "Um Passeio nas Avaliações de Animes"
 author: "Alisson Rosa"
-abstract: ""
+abstract: "O site denominado MyAnimeList, é uma rede social focada nos consumidores de animes e mangás, na qual possui como maior característica a possibilidade de seus usuários criarem uma lista pessoal para que possam catalogar as obras e classificar-las através de notas, dessa maneira o presente trabalho apresenta uma análise descritiva dos animes como também é desenvolvido um modelo de regressão para modelar o score que os usuários outorgam ao anime."
 header-includes:
    - \usepackage[brazil]{babel}
    - \usepackage{bm}
@@ -21,13 +21,14 @@ link-citations: true
 ---
 ```{r setup, include=F}
 
-options(digits = 3)  
+options(digits = 3)
 options(scipen = 999)
-ggplot2::theme_set(ggplot2::theme_minimal()) 
-knitr::opts_chunk$set(echo=F, message=F, warning=F, fig.pos = 'H', 
-                      fig.align = 'center', fig.width = 6, fig.height= 3.4)
-scale_fill_discrete = \(...) ggplot2::scale_fill_brewer(... , palette = "Set2") 
-
+ggplot2::theme_set(ggplot2::theme_minimal())
+knitr::opts_chunk$set(
+  echo = F, message = F, warning = F, fig.pos = "H",
+  fig.align = "center", fig.width = 6, fig.height = 3.4
+)
+scale_fill_discrete <- \(...) ggplot2::scale_fill_brewer(..., palette = "Set2")
 ```
 
 
@@ -39,25 +40,33 @@ library(patchwork)
 ```
 
 ```{r}
-df = read.csv("data/animes.csv")
+df <- read.csv("data/animes.csv")
 
 
-df = df |> 
- drop_na() |> distinct()  |> 
-   filter(title != "Doraemon (1979)",
-          title != "Tenkuu Danzai Skelter+Heaven",
-          title != "Hametsu no Mars",
-          title != "Pupa")|> 
-  select(-synopsis, -uid, -genre, -aired,  -img_url, -link) |> 
-  mutate(score = score / 10) |> 
-  mutate(eps = case_when(episodes < 12 ~ "very-low",
-                            (12 < episodes & episodes < 352) ~ "ok",
-                              TRUE ~ "OP"),
-                   membros = case_when(members < 100000 ~ "low",
-                                   TRUE ~ "insane"),
-                   top50_pop = ifelse(popularity < 100, 1 ,0)) |> 
+df <- df |>
+  drop_na() |>
+  distinct() |>
+  filter(
+    title != "Doraemon (1979)",
+    title != "Tenkuu Danzai Skelter+Heaven",
+    title != "Hametsu no Mars",
+    title != "Pupa"
+  ) |>
+  select(-synopsis, -uid, -genre, -aired, -img_url, -link) |>
+  mutate(score = score / 10) |>
+  mutate(
+    eps = case_when(
+      episodes < 12 ~ "very-low",
+      (12 < episodes & episodes < 352) ~ "ok",
+      TRUE ~ "OP"
+    ),
+    membros = case_when(
+      members < 100000 ~ "low",
+      TRUE ~ "insane"
+    ),
+    top50_pop = ifelse(popularity < 100, 1, 0)
+  ) |>
   filter(members > 15000)
-
 ```
 
 
@@ -88,14 +97,26 @@ seção, vamos responder algumas perguntas básicas, veremos o comportamento  da
 exemplo, existem alguns com mais de 1000 episódios^[O famigerado One Piece é um ótimo exemplo] levando assim um bom tempo para serem finalizados, dessa maneira vamos avaliar o comportamento dos episódios de forma geral.
 
 ```{r tab1}
-df |> 
-  select(episodes) |> 
-  describe() |> 
+df |>
+  select(episodes) |>
+  describe() |>
   tbl("Comportamento da Quantidade de Episódios")
 ```
 
 Portanto a Tabela \@ref(tab:tab1) informa que depois do banco ser ajustado, o anime
-com a maior quantidade de episódios é `r df |> filter(episodes == max(df$episodes)) |> select(title)`, nota-se também algo que era de se esperar, uma assimetria na quantidade de episódios, onde existe uma grande quantidade de anime com totais de episódios em torno de 12 e 25, um fato esperado pois as temporadas normalmente são divididas em duas.
+com a maior quantidade de episódios é `r df |> filter(episodes == max(df$episodes)) |> select(title)`, nota-se pela Tabela \@ref(tab:tabela) também algo que era de se esperar, uma assimetria na quantidade de episódios, onde a maioria dos animes tem quantidade de epis[odios] totais em torno de 12, 13, 24  e 26, um fato esperado pois as temporadas normalmente são divididas em duas, geralmente possuindo 12 ou 13 episódios cada parte.
+
+```{r tabela}
+df |>
+  tibble() |>
+  group_by(episodes) |>
+  summarise(n = n()) |>
+  arrange(desc(n)) |>
+  filter(episodes != 1) |>
+  head(4) |>
+  tbl("Top 4 Quantidade de Episódios")
+```
+
 
 
 \subsection{Membros}
@@ -104,22 +125,24 @@ Existem animes que são uma explosão de fãs, e uma boa maneira de avaliar isso
 \@ref(fig:tab2)
 
 ```{r tab2, fig.cap="Densidade da Quantidade de Membros"}
-df |> 
+df |>
   ggplot(aes(x = members)) +
   geom_density() +
-  labs(x = 'membros' , y = 'density')
+  labs(x = "membros", y = "density")
 ```
 
 O que podemos ver é claramente uma assimetria, algo também esperado, pois são poucos
 animes que tem a capacidade de fazer um grande sucesso. Vejamos o top 3 em quantidade de membros.
 
 ```{r}
-df |> arrange(desc(members)) |> head(3) |> 
-  select(-popularity, -ranked, -eps, -membros, -top50_pop) |> 
-  tbl("Top 3 animes em quantidade de Membros") 
+df |>
+  arrange(desc(members)) |>
+  head(3) |>
+  select(-popularity, -ranked, -eps, -membros, -top50_pop) |>
+  tbl("Top 3 animes em quantidade de Membros")
 ```
 O primeiro é o famoso Death Note^[O preferido pelo autor que vos escreve] um dos animes
-que é categorizado como "porta entrada" para esse mundo, pois trata de temas importantes que permeiam a humanidade a um bom tempo. O segundo lugar fica para Shingeki no Kyojin (SNK) ^[Attack on Titan em inglês], uma obra que para muitos é considerada uma das melhores histórias dos últimos anos, pois não segue o padrão de "storytelling" dos animes atuais^[A última temporada de SNK está marcada para ser lançada em 2023!!]. E por último esta Sword Art Online, um anime que possui uma grande quantidade de fãs e *haters*, mas por conter elementos de *games* possui uma grande quantidade de fãs desse genêro.
+que é categorizado como "porta entrada" para esse mundo, pois trata de temas importantes que permeiam a humanidade a um bom tempo. O segundo lugar fica para Shingeki no Kyojin (SNK) ^[Attack on Titan em inglês], uma obra que para muitos é considerada uma das melhores histórias dos últimos anos, pois não segue o padrão de "storytelling" dos animes atuais^[A última temporada de SNK está marcada para ser lançada em 2023!!]. E por último esta Sword Art Online, um anime que possui uma grande quantidade de fãs e *haters*, mas por conter elementos de *games* possui uma grande quantidade de fãs desse género.
 
 \subsection{Top 50 Popularidade}
 Todo ano existem animes que se destacam, sejam lançamentos ou sejam temporadas novas, dessa maneira é interessante verificar a influência da popularidade no *score*, o que podemos ver pela Figura \@ref(fig:fig-top)
@@ -128,12 +151,11 @@ Todo ano existem animes que se destacam, sejam lançamentos ou sejam temporadas 
 
 
 
-df |> 
-  mutate(top50_pop = factor(top50_pop)) |> 
+df |>
+  mutate(top50_pop = factor(top50_pop)) |>
   ggplot(aes(x = top50_pop, y = score, fill = top50_pop)) +
   geom_boxplot() +
-  labs(x = "top_50_pop", caption = '1 indica que esta no top 50')
-  
+  labs(x = "top_50_pop", caption = "1 indica que esta no top 50")
 ```
 Podemos notar que aqueles que se destacam para a comunidade em termos gerais possuem *score* maior, um fato importante para a modelagem do score em seções seguintes.
 
@@ -168,16 +190,17 @@ Dessa maneira a variável de interesse ($Y_t$) aqui é o *score*, e as covariáv
   
   
 ```{r}
-fit = betareg(score ~ ., 
-        data = df |> select(-title, -ranked, -popularity), x=TRUE, link = "logit")
+fit <- betareg(score ~ .,
+  data = df |> select(-title, -ranked, -popularity), x = TRUE, link = "logit"
+)
 ```
 Ajustando o modelo tomando g = logit^[logit(x) = log$(\dfrac{x}{1-x})$], temos como resumo a Tabela \@ref(tab:tab-coef)
 ```{r tab-coef}
-teste = fit |> summary()
-teste$coefficients$mean |> 
-  as.data.frame() |> 
-  mutate(P.value = format.pval(`Pr(>|z|)`, eps = 0.001)) |> 
-  select(-`Pr(>|z|)`, -`z value`) |> 
+teste <- fit |> summary()
+teste$coefficients$mean |>
+  as.data.frame() |>
+  mutate(P.value = format.pval(`Pr(>|z|)`, eps = 0.001)) |>
+  select(-`Pr(>|z|)`, -`z value`) |>
   tbl("Coeficientes Estimados")
 ```
 
@@ -185,71 +208,80 @@ teste$coefficients$mean |>
 Nota-se que todas variáveis são significativas para predição de score a qualquer nível de significância razoável, os coeficientes associados a animes com muitos episódios e  com poucos membros são negativos, indicando que tendem a baixar o score, 
 
 Porém o coeficiente associado aos top 50 animes em popularidade também é negativo. Um fato que não corresponde ao que era esperado pela Figura \@ref(fig:fig-top), 
-porém na Figura \@ref(fig:fig-top) avalia-se a variável isoladamente, no modelo para interpretarmos o coeficiente de uma variável fixamos os valores das outras, portanto a correlação existente entre as variáveis influência no valor do coeficientes estimados. 
+porém na Figura \@ref(fig:fig-top) avalia-se a variável isoladamente, no modelo para interpretarmos o coeficiente de uma variável fixamos os valores das outras, portanto a correlação existente entre as variáveis influência no valor dos coeficientes estimados. 
 
 
 \subsection{Medidas de Adequação}
 O modelo de regressão de beta não se adequa a qualquer situação, assim como qualquer
-modelo estatístico clássico devemos fazer uma avaliação geral da adequação. Dessa maneira vamos avaliar os gráficos dos resíduos, indíces e valores ajustados.
+modelo estatístico clássico devemos fazer uma avaliação geral da adequação. Dessa maneira vamos avaliar os gráficos dos resíduos, indices e valores ajustados.
 
 
 
 ```{r}
-residuot2 <- residuals(fit, type= "sweighted2")
+residuot2 <- residuals(fit, type = "sweighted2")
 
-yajust<-fitted.values(fit)
-yhat=hatvalues(fit)
-dcook<- cooks.distance(fit)
+yajust <- fitted.values(fit)
+yhat <- hatvalues(fit)
+dcook <- cooks.distance(fit)
 
-deviance<- sum(residuals(fit, tipe= "deviance")^2)
+deviance <- sum(residuals(fit, tipe = "deviance")^2)
 ```
-O gráfico de resíduo e indíces deve ter um comportamento aleatório e possuir poucos
+O gráfico de resíduo e indices deve ter um comportamento aleatório e possuir poucos
 valores acima de -3 e 3, para o modelo ajustado tal fato pode ser verificado pela Figura \@ref(fig:fig-index)
 
 ```{r fig-index, fig.cap="Indices vs Resíduos"}
-df = df |> bind_cols(index = 1:nrow(df))
-df |> ggplot(aes(x=index,
-                                              y=residuot2))+
-  geom_point(size=1.5) + 
-  geom_hline(yintercept=3, colour="red2", 
-             size=0.5,  linetype="dashed") +
-  geom_hline(yintercept=0, colour="black", 
-             size=0.7, linetype="dashed") +  
-  geom_hline(yintercept=-3, colour="red2", 
-             size=0.5,  linetype="dashed")+
+df <- df |> bind_cols(index = 1:nrow(df))
+df |> ggplot(aes(
+  x = index,
+  y = residuot2
+)) +
+  geom_point(size = 1.5) +
+  geom_hline(
+    yintercept = 3, colour = "red2",
+    size = 0.5, linetype = "dashed"
+  ) +
+  geom_hline(
+    yintercept = 0, colour = "black",
+    size = 0.7, linetype = "dashed"
+  ) +
+  geom_hline(
+    yintercept = -3, colour = "red2",
+    size = 0.5, linetype = "dashed"
+  ) +
   labs(x = "Índices", y = "Resíduos")
 ```
 O gráfico de medidas de alavancagem e da distância de cook em geral não podem ter pontos extravagantes em termos de valores observados, o que pode ser visto pela Figura \@ref(fig:fig-hat) é que existem duas observações claramente se destacando, porém são os animes Naruto Shippuden^[Um verdadeiro clássico] e Sword art Online, dessa maneira esses animes não serão removidos da modelagem.
 
 ```{r fig-hat, fig.cap="index vs hatvalues"}
- ggplot(df, aes(x=index, y=yhat))+
-  geom_point(size=1.5) + 
+ggplot(df, aes(x = index, y = yhat)) +
+  geom_point(size = 1.5) +
   labs(x = "Índice", y = "htt") +
-  ggplot(df, aes(x=index, 
-                                y= dcook))+
-  geom_point(size=1.5)+
+  ggplot(df, aes(
+    x = index,
+    y = dcook
+  )) +
+  geom_point(size = 1.5) +
   labs(x = "Índices", y = "Distância de Cook")
-
 ```
 
 
-```{r fig-y-yest,fig.cap="Y ajustado vs resíduos padronizados" }
-ggplot(df, aes(x=yajust, y=residuot2))+
-  geom_point(size=1.5) + 
-  geom_hline(yintercept=3, colour="red2", size=0.5, 
-             linetype="dashed") +
-  geom_hline(yintercept=0, colour="black", size=0.7,
-             linetype="dashed") +  
-  geom_hline(yintercept=-3, colour="red2", size=0.5, 
-             linetype="dashed")+
-  labs(x = "y ajustado", y = "Resíduos")
-
-```
 
 
 
 \section{\centering As Evidências e As Conclusões}
 Vimos nesse breve ensaio que a quantidade de episódios de anime flutua entre 12 e 25, a distribuição de membros é plenamente assimétrica, dessa maneira o que podemos concluir é que existem inúmeros animes existentes, porém poucos conseguem se destacar, e esses que se destacam em termos de modelagem a análise de diagnóstico tende a destacar como pontos aberrantes, o que foi visto pela Figura \@ref(fig:fig-hat), isso evidência que não se deve remover observações de banco de dados sem antes saber precisamente quão informação elas carregam.
 
+
+
+
+\section{\centering Código}
+```{r get-labels, echo = FALSE}
+labs <- knitr::all_labels()
+labs <- setdiff(labs, c("setup", "get-labels"))
+```
+
+```{r ref.label=labs, echo=TRUE, eval=FALSE}
+
+```
 
 \section{\centering Bibliografia}
