@@ -78,8 +78,7 @@ ser encontrada clicando-se [\textcolor{red}{aqui}](https://www.kaggle.com/datase
 \section{\centering Estimando Quantidades Básicas}
 Como dito anteriormente, existe uma quantidade vasta de animes disponíveis, assim
 a análise será reduzida a aqueles que possuem ao menos 15.000 membros no MAL. Nessa
-seção, vamos responder algumas perguntas básicas, veremos o comportamento  da quantidade de episódios e membros, vamos também tomar essas duas variáveis por grupos, sendo eles
-o genêro do anime e o ano de seu lançamento.
+seção, vamos responder algumas perguntas básicas, veremos o comportamento  da quantidade de episódios e membros.
 
 
 
@@ -101,10 +100,10 @@ com a maior quantidade de episódios é `r df |> filter(episodes == max(df$episo
 
 \subsection{Membros}
 Existem animes que são uma explosão de fãs, e uma boa maneira de avaliar isso
-é vendo a quantidade de membros, uma visão geral dos membros pode ser visto pelo gráfico
-\@ref(tfig:tab2)
+é vendo a quantidade de membros, uma visão geral dos membros pode ser visto pela Figura
+\@ref(fig:tab2)
 
-```{r tab2}
+```{r tab2, fig.cap="Densidade da Quantidade de Membros"}
 df |> 
   ggplot(aes(x = members)) +
   geom_density() +
@@ -151,7 +150,7 @@ g(\mu_t) = \sum_{i=1}^{k}x_{ti}\beta_i
 \end{align}
 
 
-em que os betas são parâmetros a serem estimados, os x's são variáveis observadas e $g()$ é uma função estritamente monótona.
+em que os $\beta's$ são parâmetros a serem estimados, os $x_s$ são variáveis observadas e g$(.)$ é uma função estritamente monótona e duas vezes diferenciável.
 
 Dessa maneira a variável de interesse ($Y_t$) aqui é o *score*, e as covariáveis ($x_t$) são:
 
@@ -170,20 +169,23 @@ Dessa maneira a variável de interesse ($Y_t$) aqui é o *score*, e as covariáv
   
 ```{r}
 fit = betareg(score ~ ., 
-        data = df |> select(-title, -ranked, -popularity), x=TRUE, link = "probit")
+        data = df |> select(-title, -ranked, -popularity), x=TRUE, link = "logit")
 ```
-Ajustando o modelo temos como resumo a Tabela \@ref(tab:tab-coef)
+Ajustando o modelo tomando g = logit^[logit(x) = log$(\dfrac{x}{1-x})$], temos como resumo a Tabela \@ref(tab:tab-coef)
 ```{r tab-coef}
 teste = fit |> summary()
 teste$coefficients$mean |> 
   as.data.frame() |> 
-  mutate(p.value = format.pval(`Pr(>|z|)`, eps = 0.001)) |> 
+  mutate(P.value = format.pval(`Pr(>|z|)`, eps = 0.001)) |> 
   select(-`Pr(>|z|)`, -`z value`) |> 
   tbl("Coeficientes Estimados")
 ```
 
 
-Nota-se que todas variáveis são significativas para predição de score a qualquer nível de significância razoável
+Nota-se que todas variáveis são significativas para predição de score a qualquer nível de significância razoável, os coeficientes associados a animes com muitos episódios e  com poucos membros são negativos, indicando que tendem a baixar o score, 
+
+Porém o coeficiente associado aos top 50 animes em popularidade também é negativo. Um fato que não corresponde ao que era esperado pela Figura \@ref(fig:fig-top), 
+porém na Figura \@ref(fig:fig-top) avalia-se a variável isoladamente, no modelo para interpretarmos o coeficiente de uma variável fixamos os valores das outras, portanto a correlação existente entre as variáveis influência no valor do coeficientes estimados. 
 
 
 \subsection{Medidas de Adequação}
