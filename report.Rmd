@@ -1,0 +1,245 @@
+---
+title: "Um Passeio nas Avaliações de Animes"
+author: "Alisson Rosa"
+abstract: ""
+header-includes:
+   - \usepackage[brazil]{babel}
+   - \usepackage{bm}
+   - \usepackage{float}
+geometry: left=1.7cm, right=1.7cm, top=2.5cm, bottom=2.5cm
+output:
+  bookdown::pdf_document2:
+editor_options:
+  chunk_output_type: console
+indent: true
+toc: True
+bibliography: utils/bib.bib 
+csl: utils/style.csl
+nocite: '@*'
+link-citations: true
+
+---
+```{r setup, include=F}
+
+options(digits = 3)  
+options(scipen = 999)
+ggplot2::theme_set(ggplot2::theme_minimal()) 
+knitr::opts_chunk$set(echo=F, message=F, warning=F, fig.pos = 'H', 
+                      fig.align = 'center', fig.width = 6, fig.height= 3.4)
+scale_fill_discrete = \(...) ggplot2::scale_fill_brewer(... , palette = "Set2") 
+
+```
+
+
+```{r}
+library(tidyverse)
+library(fastrep)
+library(betareg)
+library(patchwork)
+```
+
+```{r}
+df = read.csv("data/animes.csv")
+
+
+df = df |> 
+ drop_na() |> distinct()  |> 
+   filter(title != "Doraemon (1979)",
+          title != "Tenkuu Danzai Skelter+Heaven",
+          title != "Hametsu no Mars",
+          title != "Pupa")|> 
+  select(-synopsis, -uid, -genre, -aired,  -img_url, -link) |> 
+  mutate(score = score / 10) |> 
+  mutate(eps = case_when(episodes < 12 ~ "very-low",
+                            (12 < episodes & episodes < 352) ~ "ok",
+                              TRUE ~ "OP"),
+                   membros = case_when(members < 100000 ~ "low",
+                                   TRUE ~ "insane"),
+                   top50_pop = ifelse(popularity < 100, 1 ,0)) |> 
+  filter(members > 15000)
+
+```
+
+
+\section{\centering Uma Introdução aos Animes}
+
+Você sabe o que são os animes? Com certeza você já deve ter ouvido falar nesse termo. Acontece que eles nada mais são do que desenhos animados produzidos no Japão. A palavra em si é uma abreviação de “animação” em japonês. Anime nunca esteve na mesma caixinha do desenho. A estrutura da narrativa é diferente. Enquanto desenhos em geral seguem a cada episódio uma história, no anime você já tem mais um aspecto de novela, em que exige o envolvimento. Você precisa esperar pelo próximo capítulo para ver o desenrolar do que aconteceu no último. Tem o acompanhamento. Não é acompanhar só por gostar, é acompanhar a narrativa.  
+
+
+Se você abrir hoje a Netflix, vai demorar um tempo até encontrar algo que você queira ver, mas vai achar. Você pode achar algo que te interesse pela narrativa, ou algo totalmente fora da curva. Os animes sempre foram assim: um grande catálogo, que navegando você encontra narrativas interessantes e aquelas que fazem sua cabeça explodir.
+Existe a base, onde estão grande parte dos animes. E existem os atemporais. É como no cinema. Não tem aquela massiva leva de filmes que estão aí e nunca clicamos? E não tem aquelas recomendações certeiras? Existem animes que souberam explorar recursos metalinguísticos de seu formato, para contar uma história ainda maior.  
+
+
+Dessa maneira surge o MyAnimeList, muitas vezes abreviado para MAL, que é uma rede social focada nos consumidores de animes e mangás, na qual possui como maior característica a possibilidade de seus usuários criarem uma lista pessoal para que possam catalogar as obras e classificar-las através de notas. À vista disso vamos analisar os *reviews*
+deixados pelos usuários até o ano de 2020, a base aqui utilizada e modificada pode
+ser encontrada clicando-se [\textcolor{red}{aqui}](https://www.kaggle.com/datasets/marlesson/myanimelist-dataset-animes-profiles-reviews).
+
+
+\section{\centering Estimando Quantidades Básicas}
+Como dito anteriormente, existe uma quantidade vasta de animes disponíveis, assim
+a análise será reduzida a aqueles que possuem ao menos 15.000 membros no MAL. Nessa
+seção, vamos responder algumas perguntas básicas, veremos o comportamento  da quantidade de episódios e membros, vamos também tomar essas duas variáveis por grupos, sendo eles
+o genêro do anime e o ano de seu lançamento.
+
+
+
+
+\subsection{Episódios}
+É sempre uma informação relevante a quantidade de episódios de um anime, pois por
+exemplo, existem alguns com mais de 1000 episódios^[O famigerado One Piece é um ótimo exemplo] levando assim um bom tempo para serem finalizados, dessa maneira vamos avaliar o comportamento dos episódios de forma geral.
+
+```{r tab1}
+df |> 
+  select(episodes) |> 
+  describe() |> 
+  tbl("Comportamento da Quantidade de Episódios")
+```
+
+Portanto a Tabela 2 \@ref(tab:tab1) informa que depois do banco ser ajustado, o anime
+com a maior quantidade de episódios é `r df |> filter(episodes == max(df$episodes)) |> select(title)`, nota-se também algo que era de se esperar, uma assimetria na quantidade de episódios, onde existe uma grande quantidade de anime com totais de episódios em torno de 12 e 25, um fato esperado pois as temporadas normalmente são divididas em duas.
+
+
+\subsection{Membros}
+Existem animes que são uma explosão de fãs, e uma boa maneira de avaliar isso
+é vendo a quantidade de membros, uma visão geral dos membros pode ser visto pelo gráfico
+\@ref(tab:tab2)
+
+```{r tab2}
+df |> 
+  ggplot(aes(x = members)) +
+  geom_density() +
+  labs(x = 'membros' , y = 'density')
+```
+
+O que podemos ver é claramente uma assimetria, algo também esperado, pois são poucos
+animes que tem a capacidade de fazer um grande sucesso. Vejamos o top 3 em quantidade de membros.
+
+```{r}
+df |> arrange(desc(members)) |> head(3) |> 
+  select(-popularity, -ranked, -eps, -membros, -top50_pop) |> 
+  tbl("Top 3 animes em quantidade de Membros") 
+```
+O primeiro é o famoso Death Note^[O preferido pelo autor que vos escreve] um dos animes
+que é categorizado como "porta entrada" para esse mundo, pois trata de temas importantes que permeiam a humanidade a um bom tempo. O segundo lugar fica para Shingeki no Kyojin (SNK) ^[Attack on Titan em inglês], uma obra que para muitos é considerada uma das melhores histórias dos últimos anos, pois não segue o padrão de "storytelling" dos animes atuais^[A última temporada de SNK está marcada para ser lançada em 2023!!]. E por último esta Sword Art Online, um anime que possui uma grande quantidade de fãs e *haters*, mas por conter elementos de *games* possui uma grande quantidade de fãs desse genêro.
+
+\subsection{Top 50 Popularidade}
+Todo ano existem animes que se destacam, sejam lançamentos ou sejam temporadas novas, dessa maneira é interessante verificar influência da popularidade no *score*, o que podemos ver pela Figura \@ref(fig:fig-top)
+
+```{r fig-top, fig.cap="Comparação dos top 50 em popularidade em referência ao score"}
+
+
+
+df |> 
+  ggplot(aes(x = top50_pop, y = score, fill = top50_pop)) +
+  geom_boxplot() +
+  labs(x = "top_50_pop", caption = '1 indica que esta no top 50')
+  
+```
+Podemos notar então que aqueles que se destacam para a comunidade em termos gerais possuem *score* maior, um fato importante para a modelagem do score em seções seguintes.
+
+
+
+
+\section{\centering O Modelo de Regressão Beta}
+Seja $Y$ uma variável aleatória seguindo a distribuição beta, é possível reparametrizarmos a distribuição em termo de sua média ($\mu$), dessa maneira se construirmos um modelo de regressão para a média, estaremos construindo um modelo para um parâmetro da distribuição, é nesse  sentido que entra em cena o modelo de regressão beta, definido em @ferrari2004beta.
+
+Sejam $Y_1, \dots Y_n$ variáveis aleatórias que seguem a distribuição beta reparametrizada definida em  @ferrari2004beta com cada $Y_t$ possuindo uma média $\mu_t$, o modelo assume que cada $\mu_t$ pode ser escrito da seguinte maneira:
+
+\begin{align}
+g(\mu_t) = \sum_{i=1}^{k}x_{ti}\beta_i
+\end{align}
+
+
+em que os betas são parâmetros a serem estimados, os x's são variáveis observadas e $g()$ é uma função estritamente monótona.
+
+Dessa maneira a variável de interesse ($Y_t$) aqui é o *score*, e as covariáveis ($x_t$) são:
+
+* Quantidade de Episódios (episodes)
+* Quantidade de Membros (members)
+* Quantidade de episódios categorizada (eps):
+  - Menos de 12 - Very low
+  - Entre e 12 e 352 - Ok
+  - Do contrário - OP^[One Piece!]
+* Quantidade de Membros categorizada (membros):
+  - Menos do que 100000 - low
+  - Do contrário - insane
+* Top 50 em termos de Popularidade (top_50_pop)
+  - Variável que informa se o anime está entre os top 50 de popularidade.
+  
+  
+```{r}
+fit = betareg(score ~ ., 
+        data = df |> select(-title, -ranked, -popularity), x=TRUE)
+```
+Ajustando o modelo temos como resumo a tabela \@ref(tab:tab-coef)
+```{r tab-coef}
+teste = fit |> summary()
+teste$coefficients$mean |> 
+  as.data.frame() |> 
+  mutate(p.value = format.pval(`Pr(>|z|)`, eps = 0.001)) |> 
+  select(-`Pr(>|z|)`, -`z value`) |> 
+  tbl("Coeficientes Estimados")
+```
+
+
+Nota-se que todas variáveis são significativas para predição de score a qualquer nível de significância razoável
+
+
+\subsection{Medidas de Adequação}
+A^[Cuidado se você consegue identificar algum padrão nesse gráfico]
+```{r}
+residuot2 <- residuals(fit, type= "sweighted2")
+
+yajust<-fitted.values(fit)
+yhat=hatvalues(fit)
+dcook<- cooks.distance(fit)
+
+deviance<- sum(residuals(fit, tipe= "deviance")^2)
+```
+
+
+```{r fig-index, fig.cap="Indices vs Resíduos"}
+df = df |> bind_cols(index = 1:nrow(df))
+df |> ggplot(aes(x=index,
+                                              y=residuot2))+
+  geom_point(size=1.5) + 
+  geom_hline(yintercept=3, colour="red2", 
+             size=0.5,  linetype="dashed") +
+  geom_hline(yintercept=0, colour="black", 
+             size=0.7, linetype="dashed") +  
+  geom_hline(yintercept=-3, colour="red2", 
+             size=0.5,  linetype="dashed")+
+  labs(x = "Índices", y = "Resíduos")
+```
+
+
+```{r fig-hat, fig.cap="index vs hatvalues"}
+ ggplot(df, aes(x=index, y=yhat))+
+  geom_point(size=1.5) + 
+  labs(x = "Índice", y = "htt") +
+  ggplot(df, aes(x=index, 
+                                y= dcook))+
+  geom_point(size=1.5)+
+  labs(x = "Índices", y = "Distância de Cook")
+
+```
+
+
+```{r fig-y-yest,fig.cap="Y ajustado vs resíduos padronizados" }
+ggplot(df, aes(x=yajust, y=residuot2))+
+  geom_point(size=1.5) + 
+  geom_hline(yintercept=3, colour="red2", size=0.5, 
+             linetype="dashed") +
+  geom_hline(yintercept=0, colour="black", size=0.7,
+             linetype="dashed") +  
+  geom_hline(yintercept=-3, colour="red2", size=0.5, 
+             linetype="dashed")+
+  labs(x = "y ajustado", y = "Resíduos")
+
+```
+
+
+
+\section{\centering No final, é sempre sobre amizade}
+
+\section{\centering Bibliografia}
