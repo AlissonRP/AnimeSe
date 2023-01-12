@@ -1,0 +1,240 @@
+---
+title: "AnimeSe"
+subtitle: "Modelagem do Score de Animes"
+author: "Alisson Rosa <br> <br>"
+title-slide-attributes:
+  data-background-image: "https://wwwhatsnew.com/wp-content/uploads/2020/01/Los-mejores-sitios-web-para-aficionados-al-anime-1.jpg"
+  data-background-opacity: "0.25"
+format: 
+    revealjs:
+        theme: beige
+        preview-links: auto
+        chalkboard: true
+        transition: fade
+        controls: true
+        width: 1190
+        height: 720
+        bibliography: bib.bib
+        nocite: |
+                @*
+---
+
+## Sumário {background-image="https://lunetas.com.br/wp-content/uploads/2022/04/animes-e-criancas-portal-lunetas.jpg" background-opacity=0.08}
+
+::: {.incremental}
+
+<br />
+
+- Características Básicas
+
+<br />
+
+```{r}
+teste = 1
+```
+
+
+- Análise Descritiva
+
+<br />
+
+
+
+- Modelo
+
+:::
+
+## Motivação {background-image="https://lunetas.com.br/wp-content/uploads/2022/04/animes-e-criancas-portal-lunetas.jpg" background-opacity=0.08}
+
+
+<br />
+
+- MyAnimeList (MAL)
+
+<br />
+
+- Ver algumas informações do MAL em 2020;
+
+<br />
+
+- Tentar com algumas variáveis modelar o score.
+
+<br />
+
+![](https://animesher.com/orig/1/181/1810/18106/animesher.com_luffy-gif-one-piece-1810651.gif){.absolute top=170 right=200 width="250" height=450"}
+
+```{r}
+library(tidyverse)
+library(fastrep)
+library(betareg)
+library(patchwork)
+```
+
+```{r}
+df <- read.csv("../data/animes.csv")
+
+
+df <- df |>
+  drop_na() |>
+  distinct() |>
+  filter(
+    title != "Doraemon (1979)",
+    title != "Tenkuu Danzai Skelter+Heaven",
+    title != "Hametsu no Mars",
+    title != "Pupa"
+  ) |> tibble() |> 
+  select(-synopsis, -uid, -genre, -aired, -img_url, -link) |>
+  mutate(score = score / 10) |>
+  mutate(
+    eps = case_when(
+      episodes < 12 ~ "very-low",
+      (12 < episodes & episodes < 352) ~ "ok",
+      TRUE ~ "OP"
+    ),
+    membros = case_when(
+      members < 100000 ~ "low",
+      TRUE ~ "insane"
+    ),
+    top50_pop = ifelse(popularity < 100, 1, 0)
+  ) |>
+  filter(members > 15000)
+```
+
+
+
+## Quantidades básicas {background-image="https://lunetas.com.br/wp-content/uploads/2022/04/animes-e-criancas-portal-lunetas.jpg" background-opacity=0.08}
+
+
+```{r}
+df |> head(3) |> tbl()
+```
+
+
+
+
+---
+
+## Quantidades Básicas {background-image="https://lunetas.com.br/wp-content/uploads/2022/04/animes-e-criancas-portal-lunetas.jpg" background-opacity=0.08}
+
+* Quantidade de episódios categorizada (eps):
+  - Menos de 12 - Very low
+  - Entre e 12 e 352 - Ok
+  - Do contrário - OP
+* Quantidade de Membros categorizada (membros):
+  - Menos do que 100000 - low
+  - Do contrário - insane
+* Top 50 em termos de Popularidade (top_50_pop)
+
+
+
+## Quantidades Básicas {background-image="https://lunetas.com.br/wp-content/uploads/2022/04/animes-e-criancas-portal-lunetas.jpg" background-opacity=0.08}
+
+```{r tabela}
+df |>
+  tibble() |>
+  group_by(episodes) |>
+  summarise(n = n()) |>
+  arrange(desc(n)) |>
+  filter(episodes != 1) |>
+  head(4) |>
+  tbl("Top 4 Quantidade de Episódios")
+```
+
+
+## Quantidades Básicas {background-image="https://lunetas.com.br/wp-content/uploads/2022/04/animes-e-criancas-portal-lunetas.jpg" background-opacity=0.08}
+
+```{r tab2, fig.cap="Densidade da Quantidade de Membros"}
+df |>
+  ggplot(aes(x = members)) +
+  geom_density() +
+  labs(x = "membros", y = "density")
+```
+
+## Quantidades Básicas {background-image="https://lunetas.com.br/wp-content/uploads/2022/04/animes-e-criancas-portal-lunetas.jpg" background-opacity=0.08}
+ 
+```{r}
+
+
+
+df |>
+  mutate(top50_pop = factor(top50_pop)) |>
+  ggplot(aes(x = top50_pop, y = score, fill = top50_pop)) +
+  geom_boxplot() +
+  labs(x = "top_50_pop", caption = "1 indica que esta no top 50")
+```
+
+
+## Modelagem {background-image="https://lunetas.com.br/wp-content/uploads/2022/04/animes-e-criancas-portal-lunetas.jpg" background-opacity=0.08}
+
+```{r}
+fit <- betareg(score ~ .,
+  data = df |> select(-title, -ranked, -popularity), x = TRUE, link = "logit"
+)
+```
+
+
+```{r tab-coef} 
+teste <- fit |> summary()
+teste$coefficients$mean |>
+  as.data.frame() |>
+  mutate(P.value = format.pval(`Pr(>|z|)`, eps = 0.001)) |>
+  select(-`Pr(>|z|)`, -`z value`) |>
+  tbl("Coeficientes Estimados")
+```
+
+```{r}
+residuot2 <- residuals(fit, type = "sweighted2")
+
+yajust <- fitted.values(fit)
+yhat <- hatvalues(fit)
+dcook <- cooks.distance(fit)
+
+deviance <- sum(residuals(fit, tipe = "deviance")^2)
+```
+
+## Adequação 
+
+```{r}
+df <- df |> bind_cols(index = 1:nrow(df))
+df |> ggplot(aes(
+  x = index,
+  y = residuot2
+)) +
+  geom_point(size = 1.5) +
+  geom_hline(
+    yintercept = 3, colour = "red2",
+    size = 0.5, linetype = "dashed"
+  ) +
+  geom_hline(
+    yintercept = 0, colour = "black",
+    size = 0.7, linetype = "dashed"
+  ) +
+  geom_hline(
+    yintercept = -3, colour = "red2",
+    size = 0.5, linetype = "dashed"
+  ) +
+  labs(x = "Índices", y = "Resíduos")
+```
+
+## Adequação
+
+```{r fig-hat, fig.cap="index vs hatvalues"}
+ggplot(df, aes(x = index, y = yhat)) +
+  geom_point(size = 1.5) +
+  labs(x = "Índice", y = "htt") +
+  ggplot(df, aes(
+    x = index,
+    y = dcook
+  )) +
+  geom_point(size = 1.5) +
+  labs(x = "Índices", y = "Distância de Cook")
+```
+
+
+
+
+## Bibliografia 
+
+![](https://www.gifcen.com/wp-content/uploads/2021/12/luffy-gif-12.gif){.absolute top=370 left=200 width="200" height=250"}
+
+![](https://media1.giphy.com/media/UTek0q3N8osh8agH4Y/giphy.gif){.absolute top=370 right=200 width="200" height=350"}
