@@ -14,7 +14,7 @@ format:
         controls: true
         width: 1190
         height: 720
-        bibliography: bib.bib
+        bibliography: ../utils/bib.bib
         nocite: |
                 @*
 ---
