@@ -151,6 +151,16 @@ df |>
 ```
 
 ## Quantidades Básicas {background-image="https://lunetas.com.br/wp-content/uploads/2022/04/animes-e-criancas-portal-lunetas.jpg" background-opacity=0.08}
+
+```{r}
+df |>
+  arrange(desc(members)) |>
+  head(3) |>
+  select(-popularity, -ranked, -eps, -membros, -top50_pop) |>
+  tbl("Top 3 animes em quantidade de Membros")
+```
+
+## Quantidades Básicas {background-image="https://lunetas.com.br/wp-content/uploads/2022/04/animes-e-criancas-portal-lunetas.jpg" background-opacity=0.08}
  
 ```{r}
 
@@ -162,6 +172,8 @@ df |>
   geom_boxplot() +
   labs(x = "top_50_pop", caption = "1 indica que esta no top 50")
 ```
+
+
 
 
 ## Modelagem {background-image="https://lunetas.com.br/wp-content/uploads/2022/04/animes-e-criancas-portal-lunetas.jpg" background-opacity=0.08}
